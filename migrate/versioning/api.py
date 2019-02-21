@@ -83,7 +83,7 @@ def help(cmd=None, **opts):
     return ret
 
 @catch_known_errors
-def create(repository, name, **opts):
+def create(repository, name, config=None, **opts):
     """%prog create REPOSITORY_PATH NAME [--table=TABLE]
 
     Create an empty repository at the specified path.
@@ -92,11 +92,11 @@ def create(repository, name, **opts):
     'migrate_version'.  This table is created in all version-controlled
     databases.
     """
-    repo_path = Repository.create(repository, name, **opts)
+    repo_path = Repository.create(repository, config, name, **opts)
 
 
 @catch_known_errors
-def script(description, repository, **opts):
+def script(description, repository, config=None, **opts):
     """%prog script DESCRIPTION REPOSITORY_PATH
 
     Create an empty change script using the next unused version number
@@ -105,12 +105,12 @@ def script(description, repository, **opts):
     For instance, manage.py script "Add initial tables" creates:
     repository/versions/001_Add_initial_tables.py
     """
-    repo = Repository(repository)
+    repo = Repository(repository, config=config)
     repo.create_script(description, **opts)
 
 
 @catch_known_errors
-def script_sql(database, description, repository, **opts):
+def script_sql(database, description, repository, config=None, **opts):
     """%prog script_sql DATABASE DESCRIPTION REPOSITORY_PATH
 
     Create empty change SQL scripts for given DATABASE, where DATABASE
@@ -121,21 +121,21 @@ def script_sql(database, description, repository, **opts):
     repository/versions/001_description_postgresql_upgrade.sql and
     repository/versions/001_description_postgresql_downgrade.sql
     """
-    repo = Repository(repository)
+    repo = Repository(repository, config=config)
     repo.create_script_sql(database, description, **opts)
 
 
-def version(repository, **opts):
+def version(repository, config=None, **opts):
     """%prog version REPOSITORY_PATH
 
     Display the latest version available in a repository.
     """
-    repo = Repository(repository)
+    repo = Repository(repository, config=config)
     return repo.latest
 
 
 @with_engine
-def db_version(url, repository, **opts):
+def db_version(url, repository, config=None, **opts):
     """%prog db_version URL REPOSITORY_PATH
 
     Show the current version of the repository with the given
@@ -145,11 +145,11 @@ def db_version(url, repository, **opts):
     The url should be any valid SQLAlchemy connection string.
     """
     engine = opts.pop('engine')
-    schema = ControlledSchema(engine, repository)
+    schema = ControlledSchema(engine, repository, config=config)
     return schema.version
 
 
-def source(version, dest=None, repository=None, **opts):
+def source(version, dest=None, repository=None, config=None, **opts):
     """%prog source VERSION [DESTINATION] --repository=REPOSITORY_PATH
 
     Display the Python code for a particular version in this
@@ -158,7 +158,7 @@ def source(version, dest=None, repository=None, **opts):
     """
     if repository is None:
         raise exceptions.UsageError("A repository must be specified")
-    repo = Repository(repository)
+    repo = Repository(repository, config=config)
     ret = repo.version(version).script().source()
     if dest is not None:
         dest = open(dest, 'w')
@@ -168,7 +168,7 @@ def source(version, dest=None, repository=None, **opts):
     return ret
 
 
-def upgrade(url, repository, version=None, **opts):
+def upgrade(url, repository, version=None, config=None, **opts):
     """%prog upgrade URL REPOSITORY_PATH [VERSION] [--preview_py|--preview_sql]
 
     Upgrade a database to a later version.
@@ -183,10 +183,10 @@ def upgrade(url, repository, version=None, **opts):
     """
     err = "Cannot upgrade a database of version %s to version %s. "\
         "Try 'downgrade' instead."
-    return _migrate(url, repository, version, upgrade=True, err=err, **opts)
+    return _migrate(url, repository, config, version, upgrade=True, err=err, **opts)
 
 
-def downgrade(url, repository, version, **opts):
+def downgrade(url, repository, version, config=None, **opts):
     """%prog downgrade URL REPOSITORY_PATH VERSION [--preview_py|--preview_sql]
 
     Downgrade a database to an earlier version.
@@ -199,10 +199,10 @@ def downgrade(url, repository, version, **opts):
     """
     err = "Cannot downgrade a database of version %s to version %s. "\
         "Try 'upgrade' instead."
-    return _migrate(url, repository, version, upgrade=False, err=err, **opts)
+    return _migrate(url, repository, config, version, upgrade=False, err=err, **opts)
 
 @with_engine
-def test(url, repository, **opts):
+def test(url, repository, config=None, **opts):
     """%prog test URL REPOSITORY_PATH [VERSION]
 
     Performs the upgrade and downgrade option on the given
@@ -211,7 +211,7 @@ def test(url, repository, **opts):
     your database.
     """
     engine = opts.pop('engine')
-    repos = Repository(repository)
+    repos = Repository(repository, config=config)
 
     # Upgrade
     log.info("Upgrading...")
@@ -227,7 +227,7 @@ def test(url, repository, **opts):
 
 
 @with_engine
-def version_control(url, repository, version=None, **opts):
+def version_control(url, repository, version=None, config=None, **opts):
     """%prog version_control URL REPOSITORY_PATH [VERSION]
 
     Mark a database as under this repository's version control.
@@ -247,17 +247,17 @@ def version_control(url, repository, version=None, **opts):
     scratch.
     """
     engine = opts.pop('engine')
-    ControlledSchema.create(engine, repository, version)
+    ControlledSchema.create(engine, repository, version, config=config)
 
 
 @with_engine
-def drop_version_control(url, repository, **opts):
+def drop_version_control(url, repository, config=None, **opts):
     """%prog drop_version_control URL REPOSITORY_PATH
 
     Removes version control from a database.
     """
     engine = opts.pop('engine')
-    schema = ControlledSchema(engine, repository)
+    schema = ControlledSchema(engine, repository, config=config)
     schema.drop()
 
 
@@ -281,7 +281,7 @@ def manage(file, **opts):
 
 
 @with_engine
-def compare_model_to_db(url, repository, model, **opts):
+def compare_model_to_db(url, repository, model, config=None, **opts):
     """%prog compare_model_to_db URL REPOSITORY_PATH MODEL
 
     Compare the current model (assumed to be a module level variable
@@ -290,11 +290,11 @@ def compare_model_to_db(url, repository, model, **opts):
     NOTE: This is EXPERIMENTAL.
     """  # TODO: get rid of EXPERIMENTAL label
     engine = opts.pop('engine')
-    return ControlledSchema.compare_model_to_db(engine, model, repository)
+    return ControlledSchema.compare_model_to_db(engine, model, repository, config=config)
 
 
 @with_engine
-def create_model(url, repository, **opts):
+def create_model(url, repository, config=None, **opts):
     """%prog create_model URL REPOSITORY_PATH [DECLERATIVE=True]
 
     Dump the current database as a Python model to stdout.
@@ -303,12 +303,12 @@ def create_model(url, repository, **opts):
     """  # TODO: get rid of EXPERIMENTAL label
     engine = opts.pop('engine')
     declarative = opts.get('declarative', False)
-    return ControlledSchema.create_model(engine, repository, declarative)
+    return ControlledSchema.create_model(engine, repository, declarative, config=config)
 
 
 @catch_known_errors
 @with_engine
-def make_update_script_for_model(url, repository, oldmodel, model, **opts):
+def make_update_script_for_model(url, repository, oldmodel, model, config=None, **opts):
     """%prog make_update_script_for_model URL OLDMODEL MODEL REPOSITORY_PATH
 
     Create a script changing the old Python model to the new (current)
@@ -322,7 +322,7 @@ def make_update_script_for_model(url, repository, oldmodel, model, **opts):
 
 
 @with_engine
-def update_db_from_model(url, repository, model, **opts):
+def update_db_from_model(url, repository, model, config=None, **opts):
     """%prog update_db_from_model URL REPOSITORY_PATH MODEL
 
     Modify the database to match the structure of the current Python
@@ -332,14 +332,14 @@ def update_db_from_model(url, repository, model, **opts):
     NOTE: This is EXPERIMENTAL.
     """  # TODO: get rid of EXPERIMENTAL label
     engine = opts.pop('engine')
-    schema = ControlledSchema(engine, repository)
+    schema = ControlledSchema(engine, repository, config=config)
     schema.update_db_from_model(model)
 
 @with_engine
-def _migrate(url, repository, version, upgrade, err, **opts):
+def _migrate(url, repository, config, version, upgrade, err, **opts):
     engine = opts.pop('engine')
     url = str(engine.url)
-    schema = ControlledSchema(engine, repository)
+    schema = ControlledSchema(engine, repository, config=config)
     version = _migrate_version(schema, version, upgrade, err)
 
     changeset = schema.changeset(version)
