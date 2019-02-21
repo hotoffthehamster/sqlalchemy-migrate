@@ -24,9 +24,9 @@ log = logging.getLogger(__name__)
 class ControlledSchema(object):
     """A database under version control"""
 
-    def __init__(self, engine, repository):
+    def __init__(self, engine, repository, config=None):
         if isinstance(repository, six.string_types):
-            repository = Repository(repository)
+            repository = Repository(repository, config=config)
         self.engine = engine
         self.repository = repository
         self.meta = MetaData(engine)
@@ -126,7 +126,7 @@ class ControlledSchema(object):
         self.load()
 
     @classmethod
-    def create(cls, engine, repository, version=None):
+    def create(cls, engine, repository, version=None, config=None):
         """
         Declare a database to be under a repository's version control.
 
@@ -136,7 +136,7 @@ class ControlledSchema(object):
         # Confirm that the version # is valid: positive, integer,
         # exists in repos
         if isinstance(repository, six.string_types):
-            repository = Repository(repository)
+            repository = Repository(repository, config=config)
         version = cls._validate_version(repository, version)
         table = cls._create_table_version(engine, repository, version)
         # TODO: history table
@@ -196,12 +196,12 @@ class ControlledSchema(object):
         return table
 
     @classmethod
-    def compare_model_to_db(cls, engine, model, repository):
+    def compare_model_to_db(cls, engine, model, repository, config=None):
         """
         Compare the current model against the current database.
         """
         if isinstance(repository, six.string_types):
-            repository = Repository(repository)
+            repository = Repository(repository, config=config)
         model = load_model(model)
 
         diff = schemadiff.getDiffOfModelAgainstDatabase(
@@ -209,12 +209,12 @@ class ControlledSchema(object):
         return diff
 
     @classmethod
-    def create_model(cls, engine, repository, declarative=False):
+    def create_model(cls, engine, repository, declarative=False, config=None):
         """
         Dump the current database as a Python model.
         """
         if isinstance(repository, six.string_types):
-            repository = Repository(repository)
+            repository = Repository(repository, config=config)
 
         diff = schemadiff.getDiffOfModelAgainstDatabase(
             MetaData(), engine, excludeTables=[repository.version_table]

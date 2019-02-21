@@ -72,18 +72,18 @@ class Repository(pathed.Pathed):
     _config = 'migrate.cfg'
     _versions = 'versions'
 
-    def __init__(self, path):
+    def __init__(self, path=None, config=None):
         log.debug('Loading repository %s...' % path)
-        self.verify(path)
+        self.verify(path, config)
         super(Repository, self).__init__(path)
-        self.config = cfgparse.Config(os.path.join(self.path, self._config))
+        self.config = self.load_config(self.path, config)
         self.versions = version.Collection(os.path.join(self.path,
                                                       self._versions))
         log.debug('Repository %s loaded successfully' % path)
         log.debug('Config: %r' % self.config.to_dict())
 
     @classmethod
-    def verify(cls, path):
+    def verify(cls, path, config):
         """
         Ensure the target path is a valid repository.
 
@@ -92,10 +92,17 @@ class Repository(pathed.Pathed):
         # Ensure the existence of required files
         try:
             cls.require_found(path)
-            cls.require_found(os.path.join(path, cls._config))
+            if config is None:
+                cls.require_found(os.path.join(path, cls._config))
             cls.require_found(os.path.join(path, cls._versions))
         except exceptions.PathNotFoundError:
             raise exceptions.InvalidRepositoryError(path)
+
+    @classmethod
+    def load_config(cls, path, config=None):
+        if config is None:
+            return cfgparse.Config(os.path.join(path, cls._config))
+        return config
 
     @classmethod
     def prepare_config(cls, tmpl_dir, name, options=None):

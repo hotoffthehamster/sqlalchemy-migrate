@@ -23,7 +23,7 @@ class Pathed(KeyedInstance):
     parent = None
 
     @classmethod
-    def _key(cls, path):
+    def _key(cls, path, **_):
         return str(path)
 
     def __init__(self, path):
